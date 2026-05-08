@@ -3,9 +3,10 @@ from datetime import datetime, UTC
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlmodel import Session as SQLSession
 from sqlmodel import Session, select
 
-from app.core.db import get_session
+from app.core.db import engine, get_session
 from app.models.entities import AnalysisRun, Document, ExtractedItem, ItemEvidence, UserEdit
 from app.schemas.api import (
     AnalysisRunResponse,
@@ -14,6 +15,7 @@ from app.schemas.api import (
     OpenTargetResponse,
     SearchResponse,
 )
+from app.services.job_runner import executor
 from app.services.pipeline import execute_analysis
 from app.services.search import hybrid_search_chunks
 
@@ -21,6 +23,15 @@ router = APIRouter()
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+def _run_analysis_task(document_id: int, run_id: int):
+    with SQLSession(engine) as bg_session:
+        doc = bg_session.get(Document, document_id)
+        run = bg_session.get(AnalysisRun, run_id)
+        if not doc or not run:
+            return
+        execute_analysis(bg_session, doc, run)
 
 
 async def _save_single_file(project_id: str, file: UploadFile, session: Session):
@@ -59,6 +70,21 @@ async def upload_documents_batch(project_id: str, files: list[UploadFile] = File
     for f in files:
         results.append(await _save_single_file(project_id, f, session))
     return {"count": len(results), "results": results}
+
+
+@router.post("/analysis/run-async", response_model=AnalysisRunResponse)
+def run_analysis_async(payload: AnalyzeRequest, session: Session = Depends(get_session)):
+    doc = session.get(Document, payload.document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    run = AnalysisRun(document_id=doc.id, status="queued")
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+
+    executor.submit(_run_analysis_task, doc.id, run.id)
+    return AnalysisRunResponse(**run.model_dump())
 
 
 @router.post("/analysis/run", response_model=AnalysisRunResponse)

@@ -1,8 +1,8 @@
 from datetime import datetime, UTC
 
-from sqlmodel import Session
+from sqlmodel import Session, delete
 
-from app.models.entities import AnalysisRun, Chunk, Document, DocumentPage, ItemEvidence
+from app.models.entities import AnalysisRun, Chunk, Document, DocumentPage, ExtractedItem, ItemEvidence
 from app.services.analyzer import extract_items_from_chunks
 from app.services.chunking import chunk_pages
 from app.services.embedding import dumps_embedding, embed_text
@@ -14,6 +14,16 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
     try:
         run.status = "running"
         session.add(run)
+        session.commit()
+
+        bg_delete = [
+            delete(DocumentPage).where(DocumentPage.document_id == doc.id),
+            delete(Chunk).where(Chunk.document_id == doc.id),
+            delete(ExtractedItem).where(ExtractedItem.document_id == doc.id),
+            delete(ItemEvidence).where(ItemEvidence.document_id == doc.id),
+        ]
+        for stmt in bg_delete:
+            session.exec(stmt)
         session.commit()
 
         pages = parse_file(doc.storage_path)
