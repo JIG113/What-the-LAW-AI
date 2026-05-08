@@ -55,3 +55,17 @@ class AnalysisEventResponse(BaseModel):
 class RunEventListResponse(BaseModel):
     total: int
     items: list[AnalysisEventResponse]
+
+
+class ValidationIssueResponse(BaseModel):
+    id: int
+    run_id: int
+    item_id: int
+    rule_code: str
+    severity: str
+    message: str
+
+
+class ValidationIssueListResponse(BaseModel):
+    total: int
+    items: list[ValidationIssueResponse]

@@ -2,7 +2,7 @@ from datetime import datetime, UTC
 
 from sqlmodel import Session, delete
 
-from app.models.entities import AnalysisEvent, AnalysisRun, Chunk, Document, DocumentPage, ExtractedItem, ItemEvidence
+from app.models.entities import AnalysisEvent, AnalysisRun, Chunk, Document, DocumentPage, ExtractedItem, ItemEvidence, ValidationIssue
 from app.services.analyzer import extract_items_from_chunks
 from app.services.chunking import chunk_pages
 from app.services.embedding import dumps_embedding, embed_text
@@ -10,6 +10,7 @@ from app.services.normalization import normalize_korean_public_notice_text
 from app.services.ocr import run_ocr_if_needed
 from app.services.parsing import parse_file
 from app.services.postprocess import deduplicate_items
+from app.services.validators import run_domain_validations
 
 
 
@@ -92,6 +93,13 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
             ev.char_start = max(0, start)
             ev.char_end = max(0, start + len(ev.snippet_text))
             session.add(ev)
+
+
+        validation_issues = run_domain_validations(run.id, items)
+        for issue in validation_issues:
+            session.add(issue)
+        session.flush()
+        _log_event(session, run.id, "validate", f"issues={len(validation_issues)}")
 
         doc.parse_status = "parsed"
         doc.ocr_status = "done"

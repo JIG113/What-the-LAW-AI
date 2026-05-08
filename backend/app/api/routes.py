@@ -7,7 +7,7 @@ from sqlmodel import Session as SQLSession
 from sqlmodel import Session, select
 
 from app.core.db import engine, get_session
-from app.models.entities import AnalysisEvent, AnalysisRun, Document, ExtractedItem, ItemEvidence, UserEdit
+from app.models.entities import AnalysisEvent, AnalysisRun, Document, ExtractedItem, ItemEvidence, UserEdit, ValidationIssue
 from app.schemas.api import (
     AnalysisRunResponse,
     AnalyzeRequest,
@@ -17,6 +17,8 @@ from app.schemas.api import (
     RunListResponse,
     AnalysisEventResponse,
     RunEventListResponse,
+    ValidationIssueListResponse,
+    ValidationIssueResponse,
 )
 from app.services.job_runner import executor, futures
 from app.services.pipeline import execute_analysis
@@ -198,6 +200,27 @@ def list_run_events(run_id: int, offset: int = 0, limit: int = 100, session: Ses
     rows = sorted(rows, key=lambda r: r.id)
     sliced = rows[offset: offset + limit]
     return RunEventListResponse(total=len(rows), items=[AnalysisEventResponse(id=r.id, run_id=r.run_id, level=r.level, step=r.step, message=r.message) for r in sliced])
+
+
+
+@router.get("/analysis/runs/{run_id}/validation-issues", response_model=ValidationIssueListResponse)
+def list_validation_issues(run_id: int, offset: int = 0, limit: int = 100, session: Session = Depends(get_session)):
+    run = session.get(AnalysisRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    rows = session.exec(select(ValidationIssue).where(ValidationIssue.run_id == run_id)).all()
+    rows = sorted(rows, key=lambda r: r.id)
+    sliced = rows[offset: offset + limit]
+    return ValidationIssueListResponse(
+        total=len(rows),
+        items=[
+            ValidationIssueResponse(
+                id=r.id, run_id=r.run_id, item_id=r.item_id, rule_code=r.rule_code, severity=r.severity, message=r.message
+            )
+            for r in sliced
+        ],
+    )
 
 @router.get("/analysis/items")
 def list_items(document_id: int, category: str | None = None, session: Session = Depends(get_session)):

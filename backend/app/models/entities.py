@@ -95,3 +95,13 @@ class AnalysisEvent(SQLModel, table=True):
     step: str
     message: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class ValidationIssue(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    run_id: int = Field(index=True)
+    item_id: int = Field(index=True)
+    rule_code: str
+    severity: str = "warning"
+    message: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

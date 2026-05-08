@@ -1,4 +1,4 @@
-# Stage 11 Backend (추출 결과 후처리/정규화/중복 병합)
+# Stage 12 Backend (도메인 검증 규칙 + 검증 이슈 API)
 
 ## Run
 ```bash
@@ -15,12 +15,13 @@ pytest -q
 ```
 
 ## Added in this stage
-1. 추출 결과 후처리 서비스 추가(`postprocess.py`)
-2. 값 정규화(`m2 -> ㎡`, 공백 정리)
-3. 신뢰도 재계산(단위/수치 포함 항목 가산)
-4. 중복 항목 병합(카테고리/키/값 기준)
-5. 파이프라인에 후처리 단계 연결
-6. 후처리 단위 테스트 추가(`test_postprocess.py`)
+1. `ValidationIssue` 모델 추가 (run/item 단위 검증 결과 저장)
+2. 도메인 검증 규칙 서비스 추가(`validators.py`)
+   - 용적률/건폐율 % 형식/범위 검증
+   - 부지면적 단위(㎡) 누락 검증
+3. 파이프라인에 검증 단계 연결 (`validate` 이벤트 기록)
+4. 검증 이슈 조회 API `GET /analysis/runs/{run_id}/validation-issues`
+5. 검증 규칙 및 API 테스트 추가
 
 ## Core APIs
 - `POST /api/v1/documents/upload?project_id=demo`
@@ -30,6 +31,7 @@ pytest -q
 - `GET /api/v1/analysis/runs`
 - `GET /api/v1/analysis/runs/{run_id}`
 - `GET /api/v1/analysis/runs/{run_id}/events`
+- `GET /api/v1/analysis/runs/{run_id}/validation-issues`
 - `POST /api/v1/analysis/runs/{run_id}/cancel`
 - `POST /api/v1/analysis/runs/{run_id}/retry`
 - `GET /api/v1/analysis/items?document_id=1`
