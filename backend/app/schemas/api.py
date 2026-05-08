@@ -37,3 +37,8 @@ class SearchResponse(BaseModel):
     vector_score: float
     hybrid_score: float
     snippet: str
+
+
+class RunListResponse(BaseModel):
+    total: int
+    items: list[AnalysisRunResponse]

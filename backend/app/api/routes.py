@@ -14,6 +14,7 @@ from app.schemas.api import (
     ItemEditRequest,
     OpenTargetResponse,
     SearchResponse,
+    RunListResponse,
 )
 from app.services.job_runner import executor, futures
 from app.services.pipeline import execute_analysis
@@ -148,6 +149,19 @@ def retry_analysis_run(run_id: int, session: Session = Depends(get_session)):
 
     futures[run.id] = executor.submit(_run_analysis_task, doc.id, run.id)
     return AnalysisRunResponse(**run.model_dump())
+
+
+
+@router.get("/analysis/runs", response_model=RunListResponse)
+def list_analysis_runs(document_id: int | None = None, offset: int = 0, limit: int = 20, session: Session = Depends(get_session)):
+    query = select(AnalysisRun)
+    if document_id is not None:
+        query = query.where(AnalysisRun.document_id == document_id)
+
+    rows = session.exec(query).all()
+    rows = sorted(rows, key=lambda r: r.id, reverse=True)
+    sliced = rows[offset: offset + limit]
+    return RunListResponse(total=len(rows), items=[AnalysisRunResponse(**r.model_dump()) for r in sliced])
 
 @router.get("/analysis/runs/{run_id}", response_model=AnalysisRunResponse)
 def get_analysis_run(run_id: int, session: Session = Depends(get_session)):
