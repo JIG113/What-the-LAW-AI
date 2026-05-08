@@ -1,7 +1,6 @@
 # Executable Build Guide
 
-## Windows .exe build
-Run in PowerShell:
+## 1) Build Windows `.exe`
 
 ```powershell
 cd backend\build_tools
@@ -11,7 +10,7 @@ cd backend\build_tools
 Output:
 - `backend/dist/what_the_law_backend.exe`
 
-## Linux binary build
+## 2) Build Linux binary
 
 ```bash
 cd backend/build_tools
@@ -21,10 +20,27 @@ cd backend/build_tools
 Output:
 - `backend/dist/what_the_law_backend`
 
-## Run executable
-After build:
+## 3) Runtime config (optional)
+Create `app_config.json` next to executable:
 
-- Start executable
-- Open `http://127.0.0.1:8000/health`
+```json
+{
+  "host": "127.0.0.1",
+  "port": 8000,
+  "reload": false
+}
+```
 
-The executable starts FastAPI(Uvicorn) server on port `8000`.
+You can copy from `app_config.example.json`.
+
+Also supports env vars:
+- `WTL_CONFIG` (config file path)
+- `WTL_HOST`
+- `WTL_PORT`
+
+## 4) Start executable
+- Windows: `start_backend_windows.bat`
+- Linux: `./start_backend_linux.sh`
+
+After startup open:
+- `http://127.0.0.1:8000/health`
