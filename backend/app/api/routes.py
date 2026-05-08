@@ -15,7 +15,7 @@ from app.schemas.api import (
     OpenTargetResponse,
     SearchResponse,
 )
-from app.services.job_runner import executor
+from app.services.job_runner import executor, futures
 from app.services.pipeline import execute_analysis
 from app.services.search import hybrid_search_chunks
 
@@ -83,7 +83,7 @@ def run_analysis_async(payload: AnalyzeRequest, session: Session = Depends(get_s
     session.commit()
     session.refresh(run)
 
-    executor.submit(_run_analysis_task, doc.id, run.id)
+    futures[run.id] = executor.submit(_run_analysis_task, doc.id, run.id)
     return AnalysisRunResponse(**run.model_dump())
 
 
@@ -101,6 +101,53 @@ def run_analysis(payload: AnalyzeRequest, session: Session = Depends(get_session
     run = execute_analysis(session, doc, run)
     return AnalysisRunResponse(**run.model_dump())
 
+
+
+
+@router.post("/analysis/runs/{run_id}/cancel", response_model=AnalysisRunResponse)
+def cancel_analysis_run(run_id: int, session: Session = Depends(get_session)):
+    run = session.get(AnalysisRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    if run.status in {"completed", "failed", "cancelled"}:
+        return AnalysisRunResponse(**run.model_dump())
+
+    run.cancel_requested = True
+    run.status = "cancelling"
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+
+    future = futures.get(run.id)
+    if future and future.cancel():
+        run.status = "cancelled"
+        run.finished_at = datetime.now(UTC)
+        run.cancelled_at = datetime.now(UTC)
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+
+    return AnalysisRunResponse(**run.model_dump())
+
+
+@router.post("/analysis/runs/{run_id}/retry", response_model=AnalysisRunResponse)
+def retry_analysis_run(run_id: int, session: Session = Depends(get_session)):
+    prev = session.get(AnalysisRun, run_id)
+    if not prev:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    doc = session.get(Document, prev.document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    run = AnalysisRun(document_id=doc.id, status="queued")
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+
+    futures[run.id] = executor.submit(_run_analysis_task, doc.id, run.id)
+    return AnalysisRunResponse(**run.model_dump())
 
 @router.get("/analysis/runs/{run_id}", response_model=AnalysisRunResponse)
 def get_analysis_run(run_id: int, session: Session = Depends(get_session)):

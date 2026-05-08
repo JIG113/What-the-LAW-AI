@@ -26,8 +26,10 @@ class AnalysisRun(SQLModel, table=True):
     items_created: int = 0
     evidences_created: int = 0
     error_message: str = ""
+    cancel_requested: bool = False
     started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     finished_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
 
 
 class DocumentPage(SQLModel, table=True):

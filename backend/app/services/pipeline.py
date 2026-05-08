@@ -10,11 +10,26 @@ from app.services.ocr import run_ocr_if_needed
 from app.services.parsing import parse_file
 
 
+def _check_cancel(session: Session, run: AnalysisRun) -> bool:
+    session.refresh(run)
+    if run.cancel_requested:
+        run.status = "cancelled"
+        run.finished_at = datetime.now(UTC)
+        run.cancelled_at = datetime.now(UTC)
+        session.add(run)
+        session.commit()
+        return True
+    return False
+
+
 def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> AnalysisRun:
     try:
         run.status = "running"
         session.add(run)
         session.commit()
+
+        if _check_cancel(session, run):
+            return run
 
         bg_delete = [
             delete(DocumentPage).where(DocumentPage.document_id == doc.id),
@@ -27,6 +42,8 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
         session.commit()
 
         pages = parse_file(doc.storage_path)
+        if _check_cancel(session, run):
+            return run
         page_rows: list[DocumentPage] = []
         page_payload_for_chunk: list[tuple[int, str]] = []
         for idx, page_text in enumerate(pages, start=1):
@@ -44,6 +61,9 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
         for c in chunk_rows:
             session.add(c)
         session.flush()
+
+        if _check_cancel(session, run):
+            return run
 
         items, evidences = extract_items_from_chunks(doc.id, chunk_rows)
         for item in items:
