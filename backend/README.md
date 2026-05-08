@@ -1,4 +1,4 @@
-# Stage 9 Backend (run event audit trail)
+# Stage 10 Backend (OCR/AI 추출 정확도 고도화 1차)
 
 ## Run
 ```bash
@@ -15,10 +15,11 @@ pytest -q
 ```
 
 ## Added in this stage
-1. `AnalysisEvent` 테이블 추가 (run 단위 이벤트 로그)
-2. 파이프라인 주요 단계(start/cleanup/parse/chunk/extract/complete/error) 이벤트 기록
-3. 실행 이벤트 조회 API `GET /analysis/runs/{run_id}/events`
-4. 실행 이벤트 API 테스트 추가
+1. 한국어 공고/고시 문서용 텍스트 정규화 단계 추가
+2. 카테고리별 정규식 기반 구조화 필드 추출(사업개요/제출·심의/대지·법규)
+3. 키워드 라우팅 + 정규식 결합 추출(`regex+keyword`)로 정확도 향상
+4. 신뢰도 계산 로직 보강
+5. 정확도 관련 단위 테스트 추가(`test_analyzer_accuracy.py`)
 
 ## Core APIs
 - `POST /api/v1/documents/upload?project_id=demo`

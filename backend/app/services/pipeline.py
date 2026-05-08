@@ -6,6 +6,7 @@ from app.models.entities import AnalysisEvent, AnalysisRun, Chunk, Document, Doc
 from app.services.analyzer import extract_items_from_chunks
 from app.services.chunking import chunk_pages
 from app.services.embedding import dumps_embedding, embed_text
+from app.services.normalization import normalize_korean_public_notice_text
 from app.services.ocr import run_ocr_if_needed
 from app.services.parsing import parse_file
 
@@ -57,6 +58,7 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
         page_payload_for_chunk: list[tuple[int, str]] = []
         for idx, page_text in enumerate(pages, start=1):
             merged, confidence = run_ocr_if_needed(page_text)
+            merged = normalize_korean_public_notice_text(merged)
             page_rows.append(DocumentPage(document_id=doc.id, page_no=idx, merged_text=merged, ocr_confidence=confidence))
             page_payload_for_chunk.append((idx, merged))
 
