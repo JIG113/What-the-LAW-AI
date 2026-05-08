@@ -10,10 +10,24 @@ class Document(SQLModel, table=True):
     file_name: str
     file_type: str
     storage_path: str
+    file_hash: str = Field(index=True)
     parse_status: str = "queued"
     ocr_status: str = "pending"
     indexed_status: str = "pending"
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AnalysisRun(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    document_id: int = Field(index=True)
+    status: str = Field(default="queued", index=True)
+    pages: int = 0
+    chunks: int = 0
+    items_created: int = 0
+    evidences_created: int = 0
+    error_message: str = ""
+    started_at: datetime = Field(default_factory=datetime.utcnow)
+    finished_at: Optional[datetime] = None
 
 
 class DocumentPage(SQLModel, table=True):

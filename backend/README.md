@@ -1,4 +1,4 @@
-# Stage 2 Backend (ingestion + parsing + chunking + evidence)
+# Stage 3 Backend (parser adapters + run tracking + dedup)
 
 ## Run
 ```bash
@@ -8,16 +8,23 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-## Stage 2 Flow
-1. 문서 업로드
-2. 파일 파싱 (페이지 단위 텍스트)
-3. OCR 게이트 및 confidence 기록
+## Test
+```bash
+cd backend
+pytest -q
+```
+
+## Pipeline
+1. 업로드 (SHA-256 중복 검사)
+2. 문서 유형별 파싱 (PDF/DOCX/XLSX/PPTX/TXT)
+3. OCR confidence 게이트
 4. 청킹
-5. 키워드 기반 카테고리 분류
-6. 항목 및 근거(evidence) 저장
+5. 카테고리 항목/근거 추출
+6. AnalysisRun 상태 저장 (queued/running/completed/failed)
 
 ## Core APIs
 - `POST /api/v1/documents/upload?project_id=demo`
 - `POST /api/v1/analysis/run`
+- `GET /api/v1/analysis/runs/{run_id}`
 - `GET /api/v1/analysis/items?document_id=1`
 - `GET /api/v1/evidences/open-target?item_id=1`

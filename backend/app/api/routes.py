@@ -1,15 +1,14 @@
+import hashlib
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlmodel import Session, select
 
 from app.core.db import get_session
-from app.models.entities import Chunk, Document, DocumentPage, ExtractedItem, ItemEvidence
+from app.models.entities import AnalysisRun, Document, ExtractedItem, ItemEvidence
 from app.schemas.api import AnalysisRunResponse, AnalyzeRequest, OpenTargetResponse
-from app.services.analyzer import extract_items_from_chunks
-from app.services.chunking import chunk_pages
-from app.services.ocr import run_ocr_if_needed
-from app.services.parsing import parse_file
+from app.services.pipeline import execute_analysis
 
 router = APIRouter()
 
@@ -24,7 +23,13 @@ async def upload_document(
     session: Session = Depends(get_session),
 ):
     content = await file.read()
-    saved_path = UPLOAD_DIR / file.filename
+    file_hash = hashlib.sha256(content).hexdigest()
+
+    exists = session.exec(select(Document).where(Document.file_hash == file_hash, Document.project_id == project_id)).first()
+    if exists:
+        return {"document_id": exists.id, "status": "duplicate", "file_hash": file_hash}
+
+    saved_path = UPLOAD_DIR / f"{datetime.utcnow().timestamp()}_{file.filename}"
     saved_path.write_bytes(content)
 
     doc = Document(
@@ -32,12 +37,13 @@ async def upload_document(
         file_name=file.filename,
         file_type=(file.filename.split(".")[-1] if "." in file.filename else "unknown"),
         storage_path=str(saved_path),
+        file_hash=file_hash,
         parse_status="uploaded",
     )
     session.add(doc)
     session.commit()
     session.refresh(doc)
-    return {"document_id": doc.id, "status": doc.parse_status}
+    return {"document_id": doc.id, "status": doc.parse_status, "file_hash": file_hash}
 
 
 @router.post("/analysis/run", response_model=AnalysisRunResponse)
@@ -46,49 +52,21 @@ def run_analysis(payload: AnalyzeRequest, session: Session = Depends(get_session
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    pages = parse_file(doc.storage_path)
-
-    page_rows: list[DocumentPage] = []
-    page_payload_for_chunk: list[tuple[int, str]] = []
-    for idx, page_text in enumerate(pages, start=1):
-        merged, confidence = run_ocr_if_needed(page_text)
-        row = DocumentPage(document_id=doc.id, page_no=idx, merged_text=merged, ocr_confidence=confidence)
-        page_rows.append(row)
-        page_payload_for_chunk.append((idx, merged))
-
-    for row in page_rows:
-        session.add(row)
-
-    chunk_dicts = chunk_pages(page_payload_for_chunk)
-    chunk_rows = [Chunk(document_id=doc.id, **chunk_data) for chunk_data in chunk_dicts]
-    for chunk in chunk_rows:
-        session.add(chunk)
-    session.flush()
-
-    items, evidences = extract_items_from_chunks(doc.id, chunk_rows)
-
-    for item in items:
-        session.add(item)
-    session.flush()
-
-    for idx, ev in enumerate(evidences):
-        ev.extracted_item_id = items[idx].id
-        session.add(ev)
-
-    doc.parse_status = "parsed"
-    doc.ocr_status = "done"
-    doc.indexed_status = "done"
-
-    session.add(doc)
+    run = AnalysisRun(document_id=doc.id, status="queued")
+    session.add(run)
     session.commit()
+    session.refresh(run)
 
-    return AnalysisRunResponse(
-        document_id=doc.id,
-        pages=len(page_rows),
-        chunks=len(chunk_rows),
-        items_created=len(items),
-        evidences_created=len(evidences),
-    )
+    run = execute_analysis(session, doc, run)
+    return AnalysisRunResponse(**run.model_dump())
+
+
+@router.get("/analysis/runs/{run_id}", response_model=AnalysisRunResponse)
+def get_analysis_run(run_id: int, session: Session = Depends(get_session)):
+    run = session.get(AnalysisRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return AnalysisRunResponse(**run.model_dump())
 
 
 @router.get("/analysis/items")
@@ -96,8 +74,7 @@ def list_items(document_id: int, category: str | None = None, session: Session =
     query = select(ExtractedItem).where(ExtractedItem.document_id == document_id)
     if category:
         query = query.where(ExtractedItem.category == category)
-    rows = session.exec(query).all()
-    return rows
+    return session.exec(query).all()
 
 
 @router.get("/evidences/open-target", response_model=OpenTargetResponse)
@@ -106,10 +83,7 @@ def open_target(item_id: int, session: Session = Depends(get_session)):
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    evidence = session.exec(
-        select(ItemEvidence).where(ItemEvidence.extracted_item_id == item.id)
-    ).first()
+    evidence = session.exec(select(ItemEvidence).where(ItemEvidence.extracted_item_id == item.id)).first()
     if evidence:
         return OpenTargetResponse(document_id=item.document_id, page=evidence.page_no, snippet=evidence.snippet_text)
-
     return OpenTargetResponse(document_id=item.document_id, page=1, snippet=item.item_value)

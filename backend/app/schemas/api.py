@@ -12,8 +12,11 @@ class OpenTargetResponse(BaseModel):
 
 
 class AnalysisRunResponse(BaseModel):
+    run_id: int
     document_id: int
+    status: str
     pages: int
     chunks: int
     items_created: int
     evidences_created: int
+    error_message: str
