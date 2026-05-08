@@ -37,10 +37,10 @@ def _parse_number(value: str) -> float | None:
     return float(m.group(1).replace(",", ""))
 
 
-def run_domain_validations(run_id: int, items: list[ExtractedItem], now_utc: datetime | None = None, rule_profile: str = "default") -> list[ValidationIssue]:
+def run_domain_validations(run_id: int, items: list[ExtractedItem], now_utc: datetime | None = None, percent_upper_bound: float = 1000.0) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
     now_utc = now_utc or datetime.now(UTC)
-    max_percent = 500 if rule_profile == "strict" else 1000
+    max_percent = percent_upper_bound
 
     for item in items:
         if item.item_key in {"용적률", "건폐율"}:

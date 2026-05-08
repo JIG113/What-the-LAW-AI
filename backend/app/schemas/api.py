@@ -69,3 +69,15 @@ class ValidationIssueResponse(BaseModel):
 class ValidationIssueListResponse(BaseModel):
     total: int
     items: list[ValidationIssueResponse]
+
+
+class RuleProfileResponse(BaseModel):
+    id: int
+    name: str
+    percent_upper_bound: float
+    enabled: bool
+
+
+class RuleProfileListResponse(BaseModel):
+    total: int
+    items: list[RuleProfileResponse]

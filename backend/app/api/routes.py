@@ -7,7 +7,7 @@ from sqlmodel import Session as SQLSession
 from sqlmodel import Session, select
 
 from app.core.db import engine, get_session
-from app.models.entities import AnalysisEvent, AnalysisRun, Document, ExtractedItem, ItemEvidence, UserEdit, ValidationIssue
+from app.models.entities import AnalysisEvent, AnalysisRun, Document, ExtractedItem, ItemEvidence, RuleProfile, UserEdit, ValidationIssue
 from app.schemas.api import (
     AnalysisRunResponse,
     AnalyzeRequest,
@@ -19,6 +19,8 @@ from app.schemas.api import (
     RunEventListResponse,
     ValidationIssueListResponse,
     ValidationIssueResponse,
+    RuleProfileListResponse,
+    RuleProfileResponse,
 )
 from app.services.job_runner import executor, futures
 from app.services.pipeline import execute_analysis
@@ -76,6 +78,46 @@ async def _save_single_file(project_id: str, file: UploadFile, session: Session,
     session.commit()
     session.refresh(doc)
     return {"document_id": doc.id, "status": doc.parse_status, "file_hash": file_hash, "file_name": file.filename}
+
+
+
+
+def _to_rule_profile_response(p: RuleProfile) -> RuleProfileResponse:
+    return RuleProfileResponse(id=p.id, name=p.name, percent_upper_bound=p.percent_upper_bound, enabled=p.enabled)
+
+
+@router.get("/rule-profiles", response_model=RuleProfileListResponse)
+def list_rule_profiles(session: Session = Depends(get_session)):
+    rows = session.exec(select(RuleProfile)).all()
+    rows = sorted(rows, key=lambda r: r.id)
+    return RuleProfileListResponse(total=len(rows), items=[_to_rule_profile_response(r) for r in rows])
+
+
+@router.post("/rule-profiles", response_model=RuleProfileResponse)
+def create_rule_profile(name: str, percent_upper_bound: float = 1000.0, enabled: bool = True, session: Session = Depends(get_session)):
+    exists = session.exec(select(RuleProfile).where(RuleProfile.name == name)).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="Rule profile already exists")
+    rp = RuleProfile(name=name, percent_upper_bound=percent_upper_bound, enabled=enabled)
+    session.add(rp)
+    session.commit()
+    session.refresh(rp)
+    return _to_rule_profile_response(rp)
+
+
+@router.patch("/rule-profiles/{name}", response_model=RuleProfileResponse)
+def update_rule_profile(name: str, percent_upper_bound: float | None = None, enabled: bool | None = None, session: Session = Depends(get_session)):
+    rp = session.exec(select(RuleProfile).where(RuleProfile.name == name)).first()
+    if not rp:
+        raise HTTPException(status_code=404, detail="Rule profile not found")
+    if percent_upper_bound is not None:
+        rp.percent_upper_bound = percent_upper_bound
+    if enabled is not None:
+        rp.enabled = enabled
+    session.add(rp)
+    session.commit()
+    session.refresh(rp)
+    return _to_rule_profile_response(rp)
 
 
 @router.post("/documents/upload")

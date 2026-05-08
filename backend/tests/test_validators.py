@@ -32,6 +32,6 @@ def test_strict_profile_percent_threshold():
     items = [
         ExtractedItem(id=10, document_id=1, category="대지·법규", item_key="용적률", item_value="800%", confidence=0.9),
     ]
-    issues = run_domain_validations(run_id=1, items=items, rule_profile="strict")
+    issues = run_domain_validations(run_id=1, items=items, percent_upper_bound=500)
     codes = {i.rule_code for i in issues}
     assert "PERCENT_RANGE" in codes

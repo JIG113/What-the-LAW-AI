@@ -10,6 +10,7 @@ from app.services.normalization import normalize_korean_public_notice_text
 from app.services.ocr import run_ocr_if_needed
 from app.services.parsing import parse_file
 from app.services.postprocess import deduplicate_items
+from app.services.rule_profiles import get_percent_upper_bound
 from app.services.validators import run_domain_validations
 
 
@@ -95,7 +96,8 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
             session.add(ev)
 
 
-        validation_issues = run_domain_validations(run.id, items, rule_profile=doc.rule_profile)
+        percent_upper = get_percent_upper_bound(session, doc.rule_profile)
+        validation_issues = run_domain_validations(run.id, items, percent_upper_bound=percent_upper)
         for issue in validation_issues:
             session.add(issue)
         session.flush()

@@ -41,6 +41,25 @@ def _apply_sqlite_migrations(session: Session) -> None:
         session.exec(text("ALTER TABLE document ADD COLUMN rule_profile TEXT NOT NULL DEFAULT 'default'"))
         session.commit()
 
+    session.exec(text("""
+        CREATE TABLE IF NOT EXISTS ruleprofile (
+            id INTEGER PRIMARY KEY,
+            name TEXT UNIQUE NOT NULL,
+            percent_upper_bound REAL NOT NULL DEFAULT 1000.0,
+            enabled BOOLEAN NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        )
+    """))
+    session.commit()
+
+    existing_profiles = session.exec(text("SELECT name FROM ruleprofile")).all()
+    names = {r[0] for r in existing_profiles}
+    if "default" not in names:
+        session.exec(text("INSERT INTO ruleprofile (name, percent_upper_bound, enabled, created_at) VALUES ('default', 1000.0, 1, '1970-01-01T00:00:00Z')"))
+    if "strict" not in names:
+        session.exec(text("INSERT INTO ruleprofile (name, percent_upper_bound, enabled, created_at) VALUES ('strict', 500.0, 1, '1970-01-01T00:00:00Z')"))
+    session.commit()
+
 
 def init_db() -> None:
     from app.models import entities  # noqa: F401

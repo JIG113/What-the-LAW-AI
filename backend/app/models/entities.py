@@ -106,3 +106,11 @@ class ValidationIssue(SQLModel, table=True):
     severity: str = "warning"
     message: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class RuleProfile(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    percent_upper_bound: float = 1000.0
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
