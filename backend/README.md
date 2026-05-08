@@ -1,4 +1,4 @@
-# Stage 10 Backend (OCR/AI 추출 정확도 고도화 1차)
+# Stage 11 Backend (추출 결과 후처리/정규화/중복 병합)
 
 ## Run
 ```bash
@@ -15,11 +15,12 @@ pytest -q
 ```
 
 ## Added in this stage
-1. 한국어 공고/고시 문서용 텍스트 정규화 단계 추가
-2. 카테고리별 정규식 기반 구조화 필드 추출(사업개요/제출·심의/대지·법규)
-3. 키워드 라우팅 + 정규식 결합 추출(`regex+keyword`)로 정확도 향상
-4. 신뢰도 계산 로직 보강
-5. 정확도 관련 단위 테스트 추가(`test_analyzer_accuracy.py`)
+1. 추출 결과 후처리 서비스 추가(`postprocess.py`)
+2. 값 정규화(`m2 -> ㎡`, 공백 정리)
+3. 신뢰도 재계산(단위/수치 포함 항목 가산)
+4. 중복 항목 병합(카테고리/키/값 기준)
+5. 파이프라인에 후처리 단계 연결
+6. 후처리 단위 테스트 추가(`test_postprocess.py`)
 
 ## Core APIs
 - `POST /api/v1/documents/upload?project_id=demo`

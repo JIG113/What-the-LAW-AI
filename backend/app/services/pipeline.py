@@ -9,6 +9,7 @@ from app.services.embedding import dumps_embedding, embed_text
 from app.services.normalization import normalize_korean_public_notice_text
 from app.services.ocr import run_ocr_if_needed
 from app.services.parsing import parse_file
+from app.services.postprocess import deduplicate_items
 
 
 
@@ -78,12 +79,13 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
             return run
 
         items, evidences = extract_items_from_chunks(doc.id, chunk_rows)
+        items = deduplicate_items(items)
         for item in items:
             session.add(item)
         session.flush()
         _log_event(session, run.id, "extract", f"items={len(items)} evidences={len(evidences)}")
 
-        for idx, ev in enumerate(evidences):
+        for idx, ev in enumerate(evidences[: len(items)]):
             ev.extracted_item_id = items[idx].id
             page_text = chunk_rows[idx].chunk_text if idx < len(chunk_rows) else ev.snippet_text
             start = page_text.find(ev.snippet_text)
