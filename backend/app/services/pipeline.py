@@ -2,13 +2,19 @@ from datetime import datetime, UTC
 
 from sqlmodel import Session, delete
 
-from app.models.entities import AnalysisRun, Chunk, Document, DocumentPage, ExtractedItem, ItemEvidence
+from app.models.entities import AnalysisEvent, AnalysisRun, Chunk, Document, DocumentPage, ExtractedItem, ItemEvidence
 from app.services.analyzer import extract_items_from_chunks
 from app.services.chunking import chunk_pages
 from app.services.embedding import dumps_embedding, embed_text
 from app.services.ocr import run_ocr_if_needed
 from app.services.parsing import parse_file
 
+
+
+
+def _log_event(session: Session, run_id: int, step: str, message: str, level: str = "info") -> None:
+    session.add(AnalysisEvent(run_id=run_id, level=level, step=step, message=message))
+    session.commit()
 
 def _check_cancel(session: Session, run: AnalysisRun) -> bool:
     session.refresh(run)
@@ -27,6 +33,7 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
         run.status = "running"
         session.add(run)
         session.commit()
+        _log_event(session, run.id, "start", "analysis started")
 
         if _check_cancel(session, run):
             return run
@@ -40,8 +47,10 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
         for stmt in bg_delete:
             session.exec(stmt)
         session.commit()
+        _log_event(session, run.id, "cleanup", "previous artifacts cleared")
 
         pages = parse_file(doc.storage_path)
+        _log_event(session, run.id, "parse", f"parsed pages={len(pages)}")
         if _check_cancel(session, run):
             return run
         page_rows: list[DocumentPage] = []
@@ -61,6 +70,7 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
         for c in chunk_rows:
             session.add(c)
         session.flush()
+        _log_event(session, run.id, "chunk", f"chunks={len(chunk_rows)}")
 
         if _check_cancel(session, run):
             return run
@@ -69,6 +79,7 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
         for item in items:
             session.add(item)
         session.flush()
+        _log_event(session, run.id, "extract", f"items={len(items)} evidences={len(evidences)}")
 
         for idx, ev in enumerate(evidences):
             ev.extracted_item_id = items[idx].id
@@ -93,12 +104,15 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
         session.add(run)
         session.commit()
         session.refresh(run)
+        _log_event(session, run.id, "complete", "analysis completed")
         return run
     except Exception as exc:  # noqa: BLE001
         run.status = "failed"
         run.error_message = str(exc)
+        _log_event(session, run.id, "error", str(exc), level="error")
         run.finished_at = datetime.now(UTC)
         session.add(run)
         session.commit()
         session.refresh(run)
+        _log_event(session, run.id, "complete", "analysis completed")
         return run

@@ -42,3 +42,16 @@ class SearchResponse(BaseModel):
 class RunListResponse(BaseModel):
     total: int
     items: list[AnalysisRunResponse]
+
+
+class AnalysisEventResponse(BaseModel):
+    id: int
+    run_id: int
+    level: str
+    step: str
+    message: str
+
+
+class RunEventListResponse(BaseModel):
+    total: int
+    items: list[AnalysisEventResponse]

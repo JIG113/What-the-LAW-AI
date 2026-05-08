@@ -1,4 +1,4 @@
-# Stage 8 Backend (schema-safe init + run list pagination)
+# Stage 9 Backend (run event audit trail)
 
 ## Run
 ```bash
@@ -15,10 +15,10 @@ pytest -q
 ```
 
 ## Added in this stage
-1. DB 초기화 안전화: drop/create 제거, sqlite 호환 마이그레이션 보강
-2. `analysisrun` 컬럼 누락 시 자동 보정(`cancel_requested`, `cancelled_at`)
-3. 실행 이력 목록 API `GET /analysis/runs` (document_id/offset/limit)
-4. 실행 이력 목록 페이징 테스트 추가
+1. `AnalysisEvent` 테이블 추가 (run 단위 이벤트 로그)
+2. 파이프라인 주요 단계(start/cleanup/parse/chunk/extract/complete/error) 이벤트 기록
+3. 실행 이벤트 조회 API `GET /analysis/runs/{run_id}/events`
+4. 실행 이벤트 API 테스트 추가
 
 ## Core APIs
 - `POST /api/v1/documents/upload?project_id=demo`
@@ -27,6 +27,7 @@ pytest -q
 - `POST /api/v1/analysis/run-async`
 - `GET /api/v1/analysis/runs`
 - `GET /api/v1/analysis/runs/{run_id}`
+- `GET /api/v1/analysis/runs/{run_id}/events`
 - `POST /api/v1/analysis/runs/{run_id}/cancel`
 - `POST /api/v1/analysis/runs/{run_id}/retry`
 - `GET /api/v1/analysis/items?document_id=1`

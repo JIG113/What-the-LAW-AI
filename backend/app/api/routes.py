@@ -7,7 +7,7 @@ from sqlmodel import Session as SQLSession
 from sqlmodel import Session, select
 
 from app.core.db import engine, get_session
-from app.models.entities import AnalysisRun, Document, ExtractedItem, ItemEvidence, UserEdit
+from app.models.entities import AnalysisEvent, AnalysisRun, Document, ExtractedItem, ItemEvidence, UserEdit
 from app.schemas.api import (
     AnalysisRunResponse,
     AnalyzeRequest,
@@ -15,6 +15,8 @@ from app.schemas.api import (
     OpenTargetResponse,
     SearchResponse,
     RunListResponse,
+    AnalysisEventResponse,
+    RunEventListResponse,
 )
 from app.services.job_runner import executor, futures
 from app.services.pipeline import execute_analysis
@@ -24,6 +26,19 @@ router = APIRouter()
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+def _to_run_response(run: AnalysisRun) -> AnalysisRunResponse:
+    return AnalysisRunResponse(
+        id=run.id,
+        document_id=run.document_id,
+        status=run.status,
+        pages=run.pages,
+        chunks=run.chunks,
+        items_created=run.items_created,
+        evidences_created=run.evidences_created,
+        error_message=run.error_message,
+    )
 
 
 def _run_analysis_task(document_id: int, run_id: int):
@@ -85,7 +100,7 @@ def run_analysis_async(payload: AnalyzeRequest, session: Session = Depends(get_s
     session.refresh(run)
 
     futures[run.id] = executor.submit(_run_analysis_task, doc.id, run.id)
-    return AnalysisRunResponse(**run.model_dump())
+    return _to_run_response(run)
 
 
 @router.post("/analysis/run", response_model=AnalysisRunResponse)
@@ -100,7 +115,7 @@ def run_analysis(payload: AnalyzeRequest, session: Session = Depends(get_session
     session.refresh(run)
 
     run = execute_analysis(session, doc, run)
-    return AnalysisRunResponse(**run.model_dump())
+    return _to_run_response(run)
 
 
 
@@ -112,7 +127,7 @@ def cancel_analysis_run(run_id: int, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Run not found")
 
     if run.status in {"completed", "failed", "cancelled"}:
-        return AnalysisRunResponse(**run.model_dump())
+        return _to_run_response(run)
 
     run.cancel_requested = True
     run.status = "cancelling"
@@ -129,7 +144,7 @@ def cancel_analysis_run(run_id: int, session: Session = Depends(get_session)):
         session.commit()
         session.refresh(run)
 
-    return AnalysisRunResponse(**run.model_dump())
+    return _to_run_response(run)
 
 
 @router.post("/analysis/runs/{run_id}/retry", response_model=AnalysisRunResponse)
@@ -148,7 +163,7 @@ def retry_analysis_run(run_id: int, session: Session = Depends(get_session)):
     session.refresh(run)
 
     futures[run.id] = executor.submit(_run_analysis_task, doc.id, run.id)
-    return AnalysisRunResponse(**run.model_dump())
+    return _to_run_response(run)
 
 
 
@@ -161,15 +176,28 @@ def list_analysis_runs(document_id: int | None = None, offset: int = 0, limit: i
     rows = session.exec(query).all()
     rows = sorted(rows, key=lambda r: r.id, reverse=True)
     sliced = rows[offset: offset + limit]
-    return RunListResponse(total=len(rows), items=[AnalysisRunResponse(**r.model_dump()) for r in sliced])
+    return RunListResponse(total=len(rows), items=[_to_run_response(r) for r in sliced])
 
 @router.get("/analysis/runs/{run_id}", response_model=AnalysisRunResponse)
 def get_analysis_run(run_id: int, session: Session = Depends(get_session)):
     run = session.get(AnalysisRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    return AnalysisRunResponse(**run.model_dump())
+    return _to_run_response(run)
 
+
+
+
+@router.get("/analysis/runs/{run_id}/events", response_model=RunEventListResponse)
+def list_run_events(run_id: int, offset: int = 0, limit: int = 100, session: Session = Depends(get_session)):
+    run = session.get(AnalysisRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    rows = session.exec(select(AnalysisEvent).where(AnalysisEvent.run_id == run_id)).all()
+    rows = sorted(rows, key=lambda r: r.id)
+    sliced = rows[offset: offset + limit]
+    return RunEventListResponse(total=len(rows), items=[AnalysisEventResponse(id=r.id, run_id=r.run_id, level=r.level, step=r.step, message=r.message) for r in sliced])
 
 @router.get("/analysis/items")
 def list_items(document_id: int, category: str | None = None, session: Session = Depends(get_session)):
