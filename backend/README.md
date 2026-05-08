@@ -1,4 +1,4 @@
-# Stage 3 Backend (parser adapters + run tracking + dedup)
+# Stage 4 Backend (batch upload + edit history + chunk search)
 
 ## Run
 ```bash
@@ -14,17 +14,19 @@ cd backend
 pytest -q
 ```
 
-## Pipeline
-1. 업로드 (SHA-256 중복 검사)
-2. 문서 유형별 파싱 (PDF/DOCX/XLSX/PPTX/TXT)
-3. OCR confidence 게이트
-4. 청킹
-5. 카테고리 항목/근거 추출
-6. AnalysisRun 상태 저장 (queued/running/completed/failed)
+## Added in this stage
+1. 멀티파일 배치 업로드 (`/documents/upload-batch`)
+2. 항목 수동 수정 API + 수정 이력 저장 (`UserEdit`)
+3. 청크 키워드 검색 API (`/search/chunks`)
+4. 기존 분석 실행 이력(AnalysisRun) 유지
 
 ## Core APIs
 - `POST /api/v1/documents/upload?project_id=demo`
+- `POST /api/v1/documents/upload-batch?project_id=demo`
 - `POST /api/v1/analysis/run`
 - `GET /api/v1/analysis/runs/{run_id}`
 - `GET /api/v1/analysis/items?document_id=1`
+- `PATCH /api/v1/analysis/items/{item_id}`
+- `GET /api/v1/analysis/items/{item_id}/history`
+- `GET /api/v1/search/chunks?document_id=1&q=사업개요`
 - `GET /api/v1/evidences/open-target?item_id=1`

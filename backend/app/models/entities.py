@@ -68,3 +68,15 @@ class ItemEvidence(SQLModel, table=True):
     retrieval_method: str = "heuristic"
     evidence_score: float = 0.0
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class UserEdit(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    item_id: int = Field(index=True)
+    editor: str = "system"
+    old_category: str
+    new_category: str
+    old_value: str
+    new_value: str
+    reason: str = ""
+    edited_at: datetime = Field(default_factory=datetime.utcnow)

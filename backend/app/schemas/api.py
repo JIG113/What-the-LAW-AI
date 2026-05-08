@@ -12,7 +12,7 @@ class OpenTargetResponse(BaseModel):
 
 
 class AnalysisRunResponse(BaseModel):
-    run_id: int
+    id: int
     document_id: int
     status: str
     pages: int
@@ -20,3 +20,18 @@ class AnalysisRunResponse(BaseModel):
     items_created: int
     evidences_created: int
     error_message: str
+
+
+class ItemEditRequest(BaseModel):
+    category: str
+    item_value: str
+    editor: str = "reviewer"
+    reason: str = "manual update"
+
+
+class SearchResponse(BaseModel):
+    chunk_id: int
+    document_id: int
+    page_start: int
+    score: int
+    snippet: str
