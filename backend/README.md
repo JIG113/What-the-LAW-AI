@@ -1,4 +1,4 @@
-# Stage 4 Backend (batch upload + edit history + chunk search)
+# Stage 5 Backend (hybrid search + evidence anchor metadata)
 
 ## Run
 ```bash
@@ -15,10 +15,10 @@ pytest -q
 ```
 
 ## Added in this stage
-1. 멀티파일 배치 업로드 (`/documents/upload-batch`)
-2. 항목 수동 수정 API + 수정 이력 저장 (`UserEdit`)
-3. 청크 키워드 검색 API (`/search/chunks`)
-4. 기존 분석 실행 이력(AnalysisRun) 유지
+1. 청크 임베딩 저장(`embedding_json`) 및 해시 기반 임베딩 생성
+2. 하이브리드 검색 API 점수 확장 (keyword + vector)
+3. 근거 anchor 메타데이터 확장 (`char_start`, `char_end`, `bbox_json`)
+4. UTC timezone-aware datetime 기본값 적용
 
 ## Core APIs
 - `POST /api/v1/documents/upload?project_id=demo`

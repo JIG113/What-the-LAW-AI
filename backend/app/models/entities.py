@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional
 
 from sqlmodel import Field, SQLModel
@@ -14,7 +14,7 @@ class Document(SQLModel, table=True):
     parse_status: str = "queued"
     ocr_status: str = "pending"
     indexed_status: str = "pending"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class AnalysisRun(SQLModel, table=True):
@@ -26,7 +26,7 @@ class AnalysisRun(SQLModel, table=True):
     items_created: int = 0
     evidences_created: int = 0
     error_message: str = ""
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     finished_at: Optional[datetime] = None
 
 
@@ -36,7 +36,7 @@ class DocumentPage(SQLModel, table=True):
     page_no: int
     merged_text: str
     ocr_confidence: float = 0.0
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Chunk(SQLModel, table=True):
@@ -46,7 +46,8 @@ class Chunk(SQLModel, table=True):
     page_end: int
     chunk_text: str
     section_title: str = "본문"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    embedding_json: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ExtractedItem(SQLModel, table=True):
@@ -56,7 +57,7 @@ class ExtractedItem(SQLModel, table=True):
     item_key: str
     item_value: str
     confidence: float = 0.0
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ItemEvidence(SQLModel, table=True):
@@ -65,9 +66,12 @@ class ItemEvidence(SQLModel, table=True):
     document_id: int = Field(index=True)
     page_no: int
     snippet_text: str
+    char_start: int = 0
+    char_end: int = 0
+    bbox_json: str = ""
     retrieval_method: str = "heuristic"
     evidence_score: float = 0.0
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class UserEdit(SQLModel, table=True):
@@ -79,4 +83,4 @@ class UserEdit(SQLModel, table=True):
     old_value: str
     new_value: str
     reason: str = ""
-    edited_at: datetime = Field(default_factory=datetime.utcnow)
+    edited_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

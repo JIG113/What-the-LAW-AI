@@ -33,5 +33,7 @@ class SearchResponse(BaseModel):
     chunk_id: int
     document_id: int
     page_start: int
-    score: int
+    keyword_score: int
+    vector_score: float
+    hybrid_score: float
     snippet: str

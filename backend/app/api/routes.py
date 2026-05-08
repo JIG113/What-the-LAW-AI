@@ -1,5 +1,5 @@
 import hashlib
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -15,7 +15,7 @@ from app.schemas.api import (
     SearchResponse,
 )
 from app.services.pipeline import execute_analysis
-from app.services.search import keyword_search_chunks
+from app.services.search import hybrid_search_chunks
 
 router = APIRouter()
 
@@ -31,7 +31,7 @@ async def _save_single_file(project_id: str, file: UploadFile, session: Session)
     if exists:
         return {"document_id": exists.id, "status": "duplicate", "file_hash": file_hash, "file_name": file.filename}
 
-    saved_path = UPLOAD_DIR / f"{datetime.utcnow().timestamp()}_{file.filename}"
+    saved_path = UPLOAD_DIR / f"{datetime.now(UTC).timestamp()}_{file.filename}"
     saved_path.write_bytes(content)
 
     doc = Document(
@@ -124,16 +124,18 @@ def item_edit_history(item_id: int, session: Session = Depends(get_session)):
 
 @router.get("/search/chunks", response_model=list[SearchResponse])
 def search_chunks(document_id: int, q: str, limit: int = 20, session: Session = Depends(get_session)):
-    rows = keyword_search_chunks(session, document_id=document_id, query=q, limit=limit)
+    rows = hybrid_search_chunks(session, document_id=document_id, query=q, limit=limit)
     return [
         SearchResponse(
             chunk_id=chunk.id,
             document_id=chunk.document_id,
             page_start=chunk.page_start,
-            score=score,
+            keyword_score=keyword_score,
+            vector_score=vector_score,
+            hybrid_score=hybrid_score,
             snippet=chunk.chunk_text[:220],
         )
-        for chunk, score in rows
+        for chunk, keyword_score, vector_score, hybrid_score in rows
     ]
 
 
