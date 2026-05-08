@@ -52,7 +52,7 @@ def _run_analysis_task(document_id: int, run_id: int):
         execute_analysis(bg_session, doc, run)
 
 
-async def _save_single_file(project_id: str, file: UploadFile, session: Session):
+async def _save_single_file(project_id: str, file: UploadFile, session: Session, rule_profile: str = "default"):
     content = await file.read()
     file_hash = hashlib.sha256(content).hexdigest()
 
@@ -70,6 +70,7 @@ async def _save_single_file(project_id: str, file: UploadFile, session: Session)
         storage_path=str(saved_path),
         file_hash=file_hash,
         parse_status="uploaded",
+        rule_profile=rule_profile,
     )
     session.add(doc)
     session.commit()
@@ -78,17 +79,31 @@ async def _save_single_file(project_id: str, file: UploadFile, session: Session)
 
 
 @router.post("/documents/upload")
-async def upload_document(project_id: str, file: UploadFile = File(...), session: Session = Depends(get_session)):
-    return await _save_single_file(project_id, file, session)
+async def upload_document(project_id: str, rule_profile: str = "default", file: UploadFile = File(...), session: Session = Depends(get_session)):
+    return await _save_single_file(project_id, file, session, rule_profile=rule_profile)
 
 
 @router.post("/documents/upload-batch")
-async def upload_documents_batch(project_id: str, files: list[UploadFile] = File(...), session: Session = Depends(get_session)):
+async def upload_documents_batch(project_id: str, rule_profile: str = "default", files: list[UploadFile] = File(...), session: Session = Depends(get_session)):
     results = []
     for f in files:
-        results.append(await _save_single_file(project_id, f, session))
+        results.append(await _save_single_file(project_id, f, session, rule_profile=rule_profile))
     return {"count": len(results), "results": results}
 
+
+
+
+@router.patch("/documents/{document_id}/rule-profile")
+def update_document_rule_profile(document_id: int, rule_profile: str, session: Session = Depends(get_session)):
+    doc = session.get(Document, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    doc.rule_profile = rule_profile
+    session.add(doc)
+    session.commit()
+    session.refresh(doc)
+    return {"document_id": doc.id, "rule_profile": doc.rule_profile}
 
 @router.post("/analysis/run-async", response_model=AnalysisRunResponse)
 def run_analysis_async(payload: AnalyzeRequest, session: Session = Depends(get_session)):

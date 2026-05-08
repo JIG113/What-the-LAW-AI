@@ -35,6 +35,12 @@ def _apply_sqlite_migrations(session: Session) -> None:
         session.exec(text("ALTER TABLE analysisrun ADD COLUMN cancelled_at TEXT"))
     session.commit()
 
+    doc_cols = session.exec(text("PRAGMA table_info('document')")).all()
+    doc_col_names = {row[1] for row in doc_cols}
+    if "rule_profile" not in doc_col_names:
+        session.exec(text("ALTER TABLE document ADD COLUMN rule_profile TEXT NOT NULL DEFAULT 'default'"))
+        session.commit()
+
 
 def init_db() -> None:
     from app.models import entities  # noqa: F401

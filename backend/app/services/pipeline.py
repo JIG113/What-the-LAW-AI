@@ -95,7 +95,7 @@ def execute_analysis(session: Session, doc: Document, run: AnalysisRun) -> Analy
             session.add(ev)
 
 
-        validation_issues = run_domain_validations(run.id, items)
+        validation_issues = run_domain_validations(run.id, items, rule_profile=doc.rule_profile)
         for issue in validation_issues:
             session.add(issue)
         session.flush()

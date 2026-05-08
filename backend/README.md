@@ -1,4 +1,4 @@
-# Stage 13 Backend (검증 규칙 확장: 날짜/세대수)
+# Stage 14 Backend (규칙 프로파일: default/strict)
 
 ## Run
 ```bash
@@ -15,16 +15,19 @@ pytest -q
 ```
 
 ## Added in this stage
-1. 검증 규칙 확장 (`validators.py`)
-   - 날짜 형식 검증 (`DATE_FORMAT`)
-   - 과거 기한 경고 (`DATE_PAST`)
-   - 세대수 형식/범위 검증 (`HOUSEHOLD_FORMAT`, `HOUSEHOLD_RANGE`)
-2. 검증 함수에 기준 시각 주입 가능 (`now_utc`) -> 테스트/재현성 강화
-3. 검증 테스트 확장 (`test_validators.py`)
+1. 문서별 규칙 프로파일 필드 추가 (`Document.rule_profile`)
+2. 업로드 시 규칙 프로파일 지정 지원 (`rule_profile` query)
+3. 문서 규칙 프로파일 수정 API 추가
+   - `PATCH /documents/{document_id}/rule-profile`
+4. 검증기에 프로파일별 임계치 적용
+   - `default`: 용적률/건폐율 상한 1000%
+   - `strict`: 용적률/건폐율 상한 500%
+5. strict 프로파일 테스트/통합 API 테스트 추가
 
 ## Core APIs
-- `POST /api/v1/documents/upload?project_id=demo`
-- `POST /api/v1/documents/upload-batch?project_id=demo`
+- `POST /api/v1/documents/upload?project_id=demo&rule_profile=default|strict`
+- `POST /api/v1/documents/upload-batch?project_id=demo&rule_profile=default|strict`
+- `PATCH /api/v1/documents/{document_id}/rule-profile?rule_profile=strict`
 - `POST /api/v1/analysis/run`
 - `POST /api/v1/analysis/run-async`
 - `GET /api/v1/analysis/runs`

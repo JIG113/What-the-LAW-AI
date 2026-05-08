@@ -26,3 +26,12 @@ def test_validation_detects_date_and_household_issues():
     assert "DATE_PAST" in codes
     assert "HOUSEHOLD_RANGE" in codes
     assert "DATE_FORMAT" in codes
+
+
+def test_strict_profile_percent_threshold():
+    items = [
+        ExtractedItem(id=10, document_id=1, category="대지·법규", item_key="용적률", item_value="800%", confidence=0.9),
+    ]
+    issues = run_domain_validations(run_id=1, items=items, rule_profile="strict")
+    codes = {i.rule_code for i in issues}
+    assert "PERCENT_RANGE" in codes

@@ -14,6 +14,7 @@ class Document(SQLModel, table=True):
     parse_status: str = "queued"
     ocr_status: str = "pending"
     indexed_status: str = "pending"
+    rule_profile: str = "default"
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

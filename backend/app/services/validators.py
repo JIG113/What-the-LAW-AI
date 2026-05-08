@@ -37,9 +37,10 @@ def _parse_number(value: str) -> float | None:
     return float(m.group(1).replace(",", ""))
 
 
-def run_domain_validations(run_id: int, items: list[ExtractedItem], now_utc: datetime | None = None) -> list[ValidationIssue]:
+def run_domain_validations(run_id: int, items: list[ExtractedItem], now_utc: datetime | None = None, rule_profile: str = "default") -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
     now_utc = now_utc or datetime.now(UTC)
+    max_percent = 500 if rule_profile == "strict" else 1000
 
     for item in items:
         if item.item_key in {"용적률", "건폐율"}:
@@ -54,7 +55,7 @@ def run_domain_validations(run_id: int, items: list[ExtractedItem], now_utc: dat
                         message=f"{item.item_key} 값에서 % 형식을 찾지 못했습니다: {item.item_value}",
                     )
                 )
-            elif val <= 0 or val > 1000:
+            elif val <= 0 or val > max_percent:
                 issues.append(
                     ValidationIssue(
                         run_id=run_id,
