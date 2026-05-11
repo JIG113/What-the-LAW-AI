@@ -28,3 +28,20 @@ uvicorn app.main:app --reload --port 8000
 - `GET /api/v1/analysis/runs/{run_id}`
 - `GET /api/v1/analysis/runs/{run_id}/validation-issues`
 - `GET /api/v1/rule-profiles`
+
+## CI/CD (배포 아티팩트 자동 생성)
+GitHub Actions 워크플로우: `.github/workflows/release-backend.yml`
+
+- PR/브랜치 푸시 시:
+  - `backend` 테스트(`pytest -q`) 실행
+  - Linux/Windows 실행파일 빌드
+  - 빌드 결과물을 Actions Artifact로 업로드
+- 태그 푸시(`v*`, 예: `v1.0.0`) 시:
+  - 위 빌드 아티팩트를 zip으로 묶어 GitHub Release에 자동 첨부
+
+### 사용 방법
+1. 일반 검증: PR 생성 또는 `main` 브랜치 푸시
+2. 정식 배포: `git tag v1.0.0 && git push origin v1.0.0`
+3. Release 페이지에서 아래 파일 다운로드
+   - `backend-linux-binary.zip`
+   - `backend-windows-exe.zip`
