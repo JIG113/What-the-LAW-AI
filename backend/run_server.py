@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import uvicorn
+from app.main import app
 
 
 def load_runtime_config() -> dict:
@@ -26,7 +27,7 @@ def load_runtime_config() -> dict:
 
 def main() -> None:
     cfg = load_runtime_config()
-    uvicorn.run("app.main:app", host=cfg["host"], port=int(cfg["port"]), reload=bool(cfg["reload"]))
+    uvicorn.run(app, host=cfg["host"], port=int(cfg["port"]), reload=bool(cfg["reload"]))
 
 
 if __name__ == "__main__":
