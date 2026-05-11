@@ -1,10 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
 
 block_cipher = None
 
+project_root = Path(SPECPATH).resolve().parent
+entrypoint = str(project_root / 'run_server.py')
+
 a = Analysis(
-    ['run_server.py'],
-    pathex=['.'],
+    [entrypoint],
+    pathex=[str(project_root)],
     binaries=[],
     datas=[],
     hiddenimports=['uvicorn.logging', 'uvicorn.loops', 'uvicorn.protocols', 'uvicorn.lifespan', 'fastapi', 'sqlmodel'],
