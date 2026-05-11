@@ -13,7 +13,15 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app = FastAPI(
+    title=settings.app_name,
+    lifespan=lifespan,
+    swagger_ui_parameters={
+        "docExpansion": "none",
+        "defaultModelsExpandDepth": -1,
+        "displayRequestDuration": True,
+    },
+)
 app.include_router(router, prefix=settings.api_prefix)
 
 
@@ -30,4 +38,10 @@ def root():
         "health": "/health",
         "docs": "/docs",
         "api_base": settings.api_prefix,
+        "guide": [
+            "1) /docs 로 이동",
+            "2) 문서 업로드 실행",
+            "3) 분석 실행",
+            "4) 분석 결과 조회",
+        ],
     }

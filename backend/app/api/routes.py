@@ -30,6 +30,7 @@ router = APIRouter()
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+SUPPORTED_EXTENSIONS = {"pdf", "docx", "xlsx", "pptx", "txt"}
 
 
 def _to_run_response(run: AnalysisRun) -> AnalysisRunResponse:
@@ -57,6 +58,13 @@ def _run_analysis_task(document_id: int, run_id: int):
 async def _save_single_file(project_id: str, file: UploadFile, session: Session, rule_profile: str = "default"):
     content = await file.read()
     file_hash = hashlib.sha256(content).hexdigest()
+    file_ext = (file.filename.split(".")[-1].lower() if file.filename and "." in file.filename else "unknown")
+
+    if file_ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"지원하지 않는 파일 형식입니다: .{file_ext}. 지원 형식: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
+        )
 
     exists = session.exec(select(Document).where(Document.file_hash == file_hash, Document.project_id == project_id)).first()
     if exists:
@@ -68,7 +76,7 @@ async def _save_single_file(project_id: str, file: UploadFile, session: Session,
     doc = Document(
         project_id=project_id,
         file_name=file.filename,
-        file_type=(file.filename.split(".")[-1] if "." in file.filename else "unknown"),
+        file_type=file_ext,
         storage_path=str(saved_path),
         file_hash=file_hash,
         parse_status="uploaded",
@@ -120,12 +128,12 @@ def update_rule_profile(name: str, percent_upper_bound: float | None = None, ena
     return _to_rule_profile_response(rp)
 
 
-@router.post("/documents/upload")
+@router.post("/documents/upload", summary="문서 업로드", description="분석할 문서 1개를 업로드합니다.")
 async def upload_document(project_id: str, rule_profile: str = "default", file: UploadFile = File(...), session: Session = Depends(get_session)):
     return await _save_single_file(project_id, file, session, rule_profile=rule_profile)
 
 
-@router.post("/documents/upload-batch")
+@router.post("/documents/upload-batch", summary="문서 일괄 업로드", description="분석할 문서 여러 개를 한 번에 업로드합니다.")
 async def upload_documents_batch(project_id: str, rule_profile: str = "default", files: list[UploadFile] = File(...), session: Session = Depends(get_session)):
     results = []
     for f in files:
@@ -147,7 +155,7 @@ def update_document_rule_profile(document_id: int, rule_profile: str, session: S
     session.refresh(doc)
     return {"document_id": doc.id, "rule_profile": doc.rule_profile}
 
-@router.post("/analysis/run-async", response_model=AnalysisRunResponse)
+@router.post("/analysis/run-async", response_model=AnalysisRunResponse, summary="분석 실행(백그라운드)")
 def run_analysis_async(payload: AnalyzeRequest, session: Session = Depends(get_session)):
     doc = session.get(Document, payload.document_id)
     if not doc:
@@ -162,7 +170,7 @@ def run_analysis_async(payload: AnalyzeRequest, session: Session = Depends(get_s
     return _to_run_response(run)
 
 
-@router.post("/analysis/run", response_model=AnalysisRunResponse)
+@router.post("/analysis/run", response_model=AnalysisRunResponse, summary="분석 실행")
 def run_analysis(payload: AnalyzeRequest, session: Session = Depends(get_session)):
     doc = session.get(Document, payload.document_id)
     if not doc:
@@ -279,7 +287,7 @@ def list_validation_issues(run_id: int, offset: int = 0, limit: int = 100, sessi
         ],
     )
 
-@router.get("/analysis/items")
+@router.get("/analysis/items", summary="분석 결과 조회")
 def list_items(document_id: int, category: str | None = None, session: Session = Depends(get_session)):
     query = select(ExtractedItem).where(ExtractedItem.document_id == document_id)
     if category:
@@ -334,7 +342,7 @@ def search_chunks(document_id: int, q: str, limit: int = 20, session: Session = 
     ]
 
 
-@router.get("/evidences/open-target", response_model=OpenTargetResponse)
+@router.get("/evidences/open-target", response_model=OpenTargetResponse, summary="근거 원문 위치 열기")
 def open_target(item_id: int, session: Session = Depends(get_session)):
     item = session.get(ExtractedItem, item_id)
     if not item:
