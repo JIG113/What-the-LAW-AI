@@ -20,3 +20,14 @@ app.include_router(router, prefix=settings.api_prefix)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/")
+def root():
+    return {
+        "service": settings.app_name,
+        "status": "running",
+        "health": "/health",
+        "docs": "/docs",
+        "api_base": settings.api_prefix,
+    }
